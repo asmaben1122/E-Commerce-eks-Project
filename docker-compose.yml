@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Redis Cache for Cart
+  redis-cart:
+    image: redis:alpine
+    container_name: redis-cart
+    ports:
+      - "6379:6379"
+    networks:
+      - ecommerce-network
+
+  # Product Catalog Service
+  productcatalogservice:
+    build: ./src/productcatalogservice
+    container_name: productcatalogservice
+    ports:
+      - "3550:3550"
+    environment:
+      - PORT=3550
+    networks:
+      - ecommerce-network
+
+  # Cart Service
+  cartservice:
+    build: ./src/cartservice/src
+    container_name: cartservice
+    ports:
+      - "7070:7070"
+    environment:
+      - PORT=7070
+      - REDIS_ADDR=redis-cart:6379
+    depends_on:
+      - redis-cart
+    networks:
+      - ecommerce-network
+
+  # Frontend Service (Modified to work with only 3 services)
+  frontend:
+    build: ./src/frontend
+    container_name: frontend
+    ports:
+      - "8085:8080"
+    environment:
+      - PORT=8080
+      - PRODUCT_CATALOG_SERVICE_ADDR=productcatalogservice:3550
+      - CART_SERVICE_ADDR=cartservice:7070
+      # Disable other services
+      - DISABLE_TRACING=1
+      - DISABLE_PROFILER=1
+    depends_on:
+      - productcatalogservice
+      - cartservice
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    driver: bridge
